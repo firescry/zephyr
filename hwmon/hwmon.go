@@ -1,91 +1,93 @@
 package hwmon
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
 
-const supportedDeviceName = "amdgpu"
-const hwmonRootDir = "/sys/class/hwmon"
-const hwmonNameEp = "name"
-const hwmonTempEp = "temp1_input"
+const (
+	supportedDeviceName = "amdgpu"
+	hwmonRootDir        = "/sys/class/drm/card[0-9]/device/hwmon/hwmon[0-9]"
+	hwmonNameEp         = "name"
+	hwmonPwmEp          = "pwm1"
+	hwmonPwmEnableEp    = "pwm1_enable"
+	hwmonPwmMaxEp       = "pwm1_max"
+	hwmonPwmMinEp       = "pwm1_min"
+	hwmonTempEp         = "temp1_input"
+)
 
 type Device struct {
-	Name      string
-	DeviceDir string
-	epName    string
-	epTemp    string
+	hwmon  string
+	Name   string
+	PwmMax string
+	PwmMin string
 }
 
-func joinPaths(p, q string) string {
-	p = strings.TrimRight(p, "/")
-	q = strings.TrimLeft(q, "/")
-	return strings.Join([]string{p, q}, "/")
-}
-
-func readFile(path string) string {
-	content, err := ioutil.ReadFile(path)
+func listHwmon() []string {
+	result, err := filepath.Glob(hwmonRootDir)
 	if err != nil {
-		return ""
+		return result
+	}
+	return result
+}
+
+func createDevice(hwmon string) *Device {
+	device := Device{}
+	device.hwmon = hwmon
+	device.Name = device.readEp(hwmonNameEp)
+	device.PwmMax = device.readEp(hwmonPwmMaxEp)
+	device.PwmMin = device.readEp(hwmonPwmMinEp)
+	return &device
+}
+
+func (device *Device) isSupported() bool {
+	return device.Name == supportedDeviceName
+}
+
+func (device *Device) readEp(ep string) string {
+	content, err := ioutil.ReadFile(filepath.Join(device.hwmon, ep))
+	if err != nil {
+		log.Fatal(err)
 	}
 	return strings.TrimSpace(string(content))
 }
 
-func writeFile(path string, value string) {
-	err := ioutil.WriteFile(path, []byte(value), 0644)
+func (device *Device) writeEp(ep string, value int) {
+	err := ioutil.WriteFile(ep, []byte(fmt.Sprint(value)), 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
-func listDir(path string) []string {
-	var r []string
-	items, err := ioutil.ReadDir(path)
+func (device *Device) ReadTemp() float64 {
+	temp, err := strconv.ParseFloat(device.readEp(hwmonTempEp), 64)
 	if err != nil {
-		return r
+		log.Fatal(err)
 	}
-	for _, item := range items {
-		r = append(r, item.Name())
-	}
-	return r
+	return temp / 1000.0
 }
 
-func (device *Device) ReadTemp() (temp float64) {
-	temp, _ = strconv.ParseFloat(readFile(device.epTemp), 64)
-	temp = temp / 1000.0
-	return temp
+func (device *Device) SetMode(mode int) {
+	device.writeEp(hwmonPwmEnableEp, mode)
 }
 
-func createDevice(hwmonDir string) *Device {
-	device := Device{}
-	device.DeviceDir = hwmonDir
-	device.epName = joinPaths(hwmonDir, hwmonNameEp)
-	device.epTemp = joinPaths(hwmonDir, hwmonTempEp)
-	return &device
-}
-
-func (device *Device) setDeviceName() {
-	device.Name = readFile(device.epName)
-}
-
-func (device *Device) isSupported() bool {
-	return readFile(device.epName) == supportedDeviceName
+func (device *Device) SetPwm(value int) {
+	device.writeEp(hwmonPwmEp, value)
 }
 
 func SupportedDevices() []*Device {
 	var supportedDevices []*Device
-	allHwmonDevices := listDir(hwmonRootDir)
-	for _, hwmonDevice := range allHwmonDevices {
-		hwmonDeviceDir := joinPaths(hwmonRootDir, hwmonDevice)
-		device := createDevice(hwmonDeviceDir)
-		device.setDeviceName()
+	for _, hwmon := range listHwmon() {
+		device := createDevice(hwmon)
 		if device.isSupported() {
-			log.Printf("Found supported device: %s [%s]\n", device.Name, device.DeviceDir)
+			log.Printf("Found supported device: %s\n", device.Name)
 			supportedDevices = append(supportedDevices, device)
 		} else {
-			log.Printf("Found unsupported device: %s [%s]\n", device.Name, device.DeviceDir)
+			log.Printf("Found unsupported device: %s\n", device.Name)
 		}
 	}
 	return supportedDevices
