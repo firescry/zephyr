@@ -24,13 +24,13 @@ func handler(device *hwmon.Device, run chan bool) {
 	var currentTemp float64
 	var average float64
 	weights := timeseries.GenerateWeights(timeSeriesLength)
-	samples := timeseries.Initialize(timeSeriesLength, hwmon.ReadTemp(device))
+	samples := timeseries.Initialize(timeSeriesLength, device.ReadTemp())
 	for loop {
 		select {
 		case <-run:
 			loop = false
 		default:
-			currentTemp = hwmon.ReadTemp(device)
+			currentTemp = device.ReadTemp()
 			samples = timeseries.AddValue(samples, currentTemp)
 			average = timeseries.WeightedAverage(samples, weights)
 			log.Printf("[%s] current temperature: %.1f; average: %f", device.Name, currentTemp, average)

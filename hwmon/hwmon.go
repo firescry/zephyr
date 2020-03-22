@@ -52,7 +52,7 @@ func listDir(path string) []string {
 	return r
 }
 
-func ReadTemp(device *Device) (temp float64) {
+func (device *Device) ReadTemp() (temp float64) {
 	temp, _ = strconv.ParseFloat(readFile(device.epTemp), 64)
 	temp = temp / 1000.0
 	return temp
@@ -66,11 +66,11 @@ func createDevice(hwmonDir string) *Device {
 	return &device
 }
 
-func setDeviceName(device *Device) {
+func (device *Device) setDeviceName() {
 	device.Name = readFile(device.epName)
 }
 
-func isSupported(device *Device) bool {
+func (device *Device) isSupported() bool {
 	return readFile(device.epName) == supportedDeviceName
 }
 
@@ -80,8 +80,8 @@ func SupportedDevices() []*Device {
 	for _, hwmonDevice := range allHwmonDevices {
 		hwmonDeviceDir := joinPaths(hwmonRootDir, hwmonDevice)
 		device := createDevice(hwmonDeviceDir)
-		setDeviceName(device)
-		if isSupported(device) {
+		device.setDeviceName()
+		if device.isSupported() {
 			log.Printf("Found supported device: %s [%s]\n", device.Name, device.DeviceDir)
 			supportedDevices = append(supportedDevices, device)
 		} else {
