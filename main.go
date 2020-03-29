@@ -2,43 +2,12 @@ package main
 
 import (
 	"github.com/firescry/zephyr/hwmon"
-	"github.com/firescry/zephyr/timeseries"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 )
-
-const timeSeriesLength = 30
-
-// ToDo: It doesn't work :(
-func waitForShutdown() {
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
-	<-c
-}
-
-func handler(device *hwmon.Device, run chan bool) {
-	loop := true
-	var currentTemp float64
-	var average float64
-	weights := timeseries.GenerateWeights(timeSeriesLength)
-	samples := timeseries.Initialize(timeSeriesLength, device.ReadTemp())
-	for loop {
-		select {
-		case <-run:
-			loop = false
-		default:
-			currentTemp = device.ReadTemp()
-			samples = timeseries.AddValue(samples, currentTemp)
-			average = timeseries.WeightedAverage(samples, weights)
-			log.Printf("[%s] current temperature: %.1f; average: %f", device.Name, currentTemp, average)
-			time.Sleep(time.Second)
-		}
-	}
-	log.Printf("%s: FINISHED!\n", device.Name)
-}
 
 func main() {
 	supportedDevices := hwmon.SupportedDevices()
@@ -47,15 +16,27 @@ func main() {
 		log.Printf("WARNING: There are no supported devices")
 	}
 
-	run := make(chan bool, 1)
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
-	for _, device := range supportedDevices {
-		go handler(device, run)
+	loop := true
+
+	var currentTemp float64
+	var average float64
+
+	for loop {
+		select {
+		case <-quit:
+			loop = false
+		default:
+			for _, device := range supportedDevices {
+				currentTemp = device.ReadTemp()
+				device.TempSamples.AddSample(currentTemp)
+				average = device.TempSamples.WeightedAverage()
+				log.Printf("[%s] current temperature: %.1f; average: %f", device.Name, currentTemp, average)
+				time.Sleep(time.Second)
+			}
+		}
 	}
-
-	waitForShutdown()
-
-	for range supportedDevices {
-		run <- false
-	}
+	log.Printf("Exit!")
 }

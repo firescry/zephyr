@@ -2,6 +2,7 @@ package hwmon
 
 import (
 	"fmt"
+	"github.com/firescry/zephyr/timeseries"
 	"io/ioutil"
 	"log"
 	"path/filepath"
@@ -10,6 +11,7 @@ import (
 )
 
 const (
+	tempSamplesNumber   = 30
 	supportedDeviceName = "amdgpu"
 	hwmonRootDir        = "/sys/class/drm/card[0-9]/device/hwmon/hwmon[0-9]"
 	hwmonNameEp         = "name"
@@ -21,10 +23,11 @@ const (
 )
 
 type Device struct {
-	hwmon  string
-	Name   string
-	PwmMax string
-	PwmMin string
+	hwmon       string
+	Name        string
+	PwmMax      string
+	PwmMin      string
+	TempSamples *timeseries.TimeSeries
 }
 
 func listHwmon() []string {
@@ -41,6 +44,7 @@ func createDevice(hwmon string) *Device {
 	device.Name = device.readEp(hwmonNameEp)
 	device.PwmMax = device.readEp(hwmonPwmMaxEp)
 	device.PwmMin = device.readEp(hwmonPwmMinEp)
+	device.TempSamples = timeseries.InitTimeSeries(tempSamplesNumber, device.ReadTemp())
 	return &device
 }
 
