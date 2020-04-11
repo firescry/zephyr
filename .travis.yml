@@ -1,7 +1,7 @@
 language: go
-os:
-  - linux
+os: linux
 go:
   - 1.13.x
   - 1.14.x
-  - master
+script:
+  - go test -cover -bench . -benchmem -v ./...
