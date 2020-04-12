@@ -1,0 +1,12 @@
+[Unit]
+Description=Fan controller for AMDGPU
+
+[Service]
+Type=simple
+User=root
+Group=root
+ExecStart=/usr/bin/zephyr
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
