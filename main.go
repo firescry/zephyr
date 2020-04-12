@@ -19,24 +19,24 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
+	for _, device := range supportedDevices {
+		device.SetPwmMode(hwmon.PwmModeManual)
+	}
+
 	loop := true
-
-	var currentTemp float64
-	var average float64
-
 	for loop {
 		select {
 		case <-quit:
 			loop = false
 		default:
 			for _, device := range supportedDevices {
-				currentTemp = device.ReadTemp()
-				device.TempSamples.AddSample(currentTemp)
-				average = device.TempSamples.WeightedAverage()
-				log.Printf("[%s] current temperature: %.1f; average: %f", device.Name, currentTemp, average)
+				device.Update()
 				time.Sleep(time.Second)
 			}
 		}
 	}
-	log.Printf("Exit!")
+
+	for _, device := range supportedDevices {
+		device.SetPwmMode(hwmon.PwmModeAuto)
+	}
 }
