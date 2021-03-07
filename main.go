@@ -1,12 +1,13 @@
 package main
 
 import (
-	"github.com/firescry/zephyr/hwmon"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/firescry/zephyr/hwmon"
 )
 
 func main() {

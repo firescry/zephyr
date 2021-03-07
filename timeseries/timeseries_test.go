@@ -1,9 +1,10 @@
 package timeseries
 
 import (
-	"github.com/firescry/zephyr/toolbox"
 	"reflect"
 	"testing"
+
+	"github.com/firescry/zephyr/toolbox"
 )
 
 const benchSliceLength = 30

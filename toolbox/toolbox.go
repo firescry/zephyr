@@ -11,7 +11,7 @@ func AlmostEqual(a, b float64) bool {
 	return math.Abs(a-b) <= almostEqualThreshold
 }
 
-// CompSlices - compare two slices with floats
+// CompareSlices compares two slices with floats
 func CompareSlices(a, b []float64) bool {
 	if len(a) != len(b) {
 		return false
