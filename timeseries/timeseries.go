@@ -4,6 +4,7 @@ import (
 	"math"
 )
 
+// TimeSeries defines a type which holds information about samples and their weights
 type TimeSeries struct {
 	samples []float64
 	weights []float64
@@ -24,6 +25,7 @@ func multiplySlices(a, b []float64) (result []float64) {
 	return result
 }
 
+// InitTimeSeries returns series of given length and initial value
 func InitTimeSeries(length int, initValue float64) *TimeSeries {
 	timeSeries := TimeSeries{}
 	timeSeries.initSamples(length, initValue)
@@ -46,11 +48,13 @@ func (timeSeries *TimeSeries) initWeights(length int) {
 	}
 }
 
+// AddSample adds new sample to series and drops the oldest one
 func (timeSeries *TimeSeries) AddSample(sample float64) {
 	timeSeries.samples = timeSeries.samples[1:]
 	timeSeries.samples = append(timeSeries.samples, sample)
 }
 
+// WeightedAverage returns weighted average for a given series
 func (timeSeries *TimeSeries) WeightedAverage() (result float64) {
 	result = sumElements(multiplySlices(timeSeries.samples, timeSeries.weights))
 	result = result / sumElements(timeSeries.weights)

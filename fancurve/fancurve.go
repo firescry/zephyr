@@ -1,5 +1,6 @@
 package fancurve
 
+// Curve returns desired fan speed (in percentage) for given temperature
 func Curve(temp float64) float64 {
 	switch {
 	case temp < 40.0:
