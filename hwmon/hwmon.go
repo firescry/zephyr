@@ -36,7 +36,7 @@ type Device struct {
 	PwmMax      int
 	PwmMin      int
 	TempSamples *timeseries.TimeSeries
-	fanCurve    func(float64) float64
+	fanCurve    *fancurve.Curve
 }
 
 func listHwmon() []string {
@@ -54,7 +54,7 @@ func newDevice(hwmon string) *Device {
 	device.PwmMax, _ = strconv.Atoi(device.readEp(hwmonPwmMaxEp))
 	device.PwmMin, _ = strconv.Atoi(device.readEp(hwmonPwmMinEp))
 	device.TempSamples = timeseries.InitTimeSeries(tempSamplesNumber, device.readTemp())
-	device.fanCurve = fancurve.Curve
+	device.fanCurve = fancurve.NewCurve(50.0, 80.0, 32.0, 100.0)
 	return &device
 }
 
@@ -126,7 +126,7 @@ func SupportedDevices() []*Device {
 func (device *Device) Update() {
 	device.TempSamples.AddSample(device.readTemp())
 	average := device.TempSamples.WeightedAverage()
-	percent := device.fanCurve(average)
+	percent := device.fanCurve.GetPwmPercent(average)
 	pwm := device.percentToPwm(percent)
 	device.setPwm(pwm)
 }

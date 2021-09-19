@@ -1,13 +1,29 @@
 package fancurve
 
-// Curve returns desired fan speed (in percentage) for given temperature
-func Curve(temp float64) float64 {
-	switch {
-	case temp < 40.0:
-		return 32.0
-	case temp > 80.0:
-		return 100.0
-	default:
-		return 1.7*temp - 36.0
+type Curve struct {
+	minTemp float64
+	maxTemp float64
+	a       float64
+	b       float64
+}
+
+func NewCurve(minTemp, maxTemp, minPwmPercent, maxPwmPercent float64) *Curve {
+	a := (maxPwmPercent - minPwmPercent) / (maxTemp - minTemp)
+	b := maxPwmPercent - a*maxTemp
+	curve := Curve{
+		minTemp: minTemp,
+		maxTemp: maxTemp,
+		a:       a,
+		b:       b,
 	}
+	return &curve
+}
+
+func (c *Curve) GetPwmPercent(temp float64) float64 {
+	if temp < c.minTemp {
+		temp = c.minTemp
+	} else if temp > c.maxTemp {
+		temp = c.maxTemp
+	}
+	return c.a*temp + c.b
 }
