@@ -2,9 +2,9 @@ package hwmon
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"math"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -63,7 +63,7 @@ func (device *Device) isSupported() bool {
 }
 
 func (device *Device) readEp(ep string) string {
-	content, err := ioutil.ReadFile(filepath.Join(device.hwmon, ep))
+	content, err := os.ReadFile(filepath.Join(device.hwmon, ep))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -71,7 +71,7 @@ func (device *Device) readEp(ep string) string {
 }
 
 func (device *Device) writeEp(ep string, value int) {
-	err := ioutil.WriteFile(filepath.Join(device.hwmon, ep), []byte(fmt.Sprint(value)), 0644)
+	err := os.WriteFile(filepath.Join(device.hwmon, ep), []byte(fmt.Sprint(value)), 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
