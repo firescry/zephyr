@@ -7,11 +7,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/firescry/zephyr/hwmon"
+	"github.com/firescry/zephyr/fan"
 )
 
 func main() {
-	supportedDevices := hwmon.SupportedDevices()
+	supportedDevices := fan.SupportedDevices()
 
 	if len(supportedDevices) == 0 {
 		log.Printf("WARNING: There are no supported devices")
@@ -21,7 +21,7 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 	for _, device := range supportedDevices {
-		device.SetPwmMode(hwmon.PwmModeManual)
+		device.SetPwmMode(fan.PwmModeManual)
 	}
 
 	loop := true
@@ -38,6 +38,6 @@ func main() {
 	}
 
 	for _, device := range supportedDevices {
-		device.SetPwmMode(hwmon.PwmModeAuto)
+		device.SetPwmMode(fan.PwmModeAuto)
 	}
 }
