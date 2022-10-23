@@ -1,13 +1,8 @@
 package fan
 
 import (
-	"fmt"
 	"log"
 	"math"
-	"os"
-	"path/filepath"
-	"strconv"
-	"strings"
 
 	"github.com/firescry/zephyr/fancurve"
 	"github.com/firescry/zephyr/hwmon"
@@ -26,60 +21,31 @@ const (
 
 // Device represents supported device
 type Device struct {
-	hwmon       string
-	Name        string
+	hwmon       hwmon.Hwmon
 	PwmMax      int
 	PwmMin      int
 	TempSamples *timeseries.TimeSeries
 	fanCurve    *fancurve.Curve
 }
 
-func newDevice(hw string) *Device {
-	device := Device{}
-	device.hwmon = hw
-	device.Name = device.readEp(hwmon.HwmonNameEp)
-	device.PwmMax, _ = strconv.Atoi(device.readEp(hwmon.HwmonPwmMaxEp))
-	device.PwmMin, _ = strconv.Atoi(device.readEp(hwmon.HwmonPwmMinEp))
-	device.TempSamples = timeseries.InitTimeSeries(TempSamplesNumber, device.readTemp())
-	device.fanCurve = fancurve.NewCurve(50.0, 80.0, 32.0, 100.0)
-	return &device
+func newDevice(hw hwmon.Hwmon) *Device {
+	return &Device{
+		hwmon:       hw,
+		PwmMax:      hw.GetPwmMax(),
+		PwmMin:      hw.GetPwmMin(),
+		TempSamples: timeseries.InitTimeSeries(TempSamplesNumber, hw.GetTemp()),
+		fanCurve:    fancurve.NewCurve(50.0, 80.0, 32.0, 100.0),
+	}
 }
 
 func (device *Device) isSupported() bool {
-	return device.Name == SupportedDeviceName
-}
-
-func (device *Device) readEp(ep string) string {
-	content, err := os.ReadFile(filepath.Join(device.hwmon, ep))
-	if err != nil {
-		log.Fatal(err)
-	}
-	return strings.TrimSpace(string(content))
-}
-
-func (device *Device) writeEp(ep string, value int) {
-	err := os.WriteFile(filepath.Join(device.hwmon, ep), []byte(fmt.Sprint(value)), 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
-func (device *Device) readTemp() float64 {
-	temp, err := strconv.ParseFloat(device.readEp(hwmon.HwmonTempEp), 64)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return temp / 1000.0
+	return device.hwmon.GetName() == SupportedDeviceName
 }
 
 // SetPwmMode sets PWM mode for device
 func (device *Device) SetPwmMode(mode int) {
-	device.writeEp(hwmon.HwmonPwmEnableEp, mode)
-	log.Printf("[%s] PWM mode change to %d\n", device.Name, mode)
-}
-
-func (device *Device) setPwm(value int) {
-	device.writeEp(hwmon.HwmonPwmEp, value)
+	device.hwmon.SetPwmMode(mode)
+	log.Printf("[%s] PWM mode change to %d\n", device.hwmon.GetName(), mode)
 }
 
 func (device *Device) percentToPwm(percent float64) (pwm int) {
@@ -97,13 +63,13 @@ func (device *Device) percentToPwm(percent float64) (pwm int) {
 // SupportedDevices returns list of supported devices
 func SupportedDevices() []*Device {
 	var supportedDevices []*Device
-	for _, hwmon := range hwmon.ListHwmon() {
+	for _, hwmon := range hwmon.FindAll() {
 		device := newDevice(hwmon)
 		if device.isSupported() {
-			log.Printf("Found supported device: %s\n", device.Name)
+			log.Printf("Found supported device: %s\n", device.hwmon.GetName())
 			supportedDevices = append(supportedDevices, device)
 		} else {
-			log.Printf("Found unsupported device: %s\n", device.Name)
+			log.Printf("Found unsupported device: %s\n", device.hwmon.GetName())
 		}
 	}
 	return supportedDevices
@@ -111,9 +77,9 @@ func SupportedDevices() []*Device {
 
 // Update device by reading its current temperature and adjusting PWM accordingly
 func (device *Device) Update() {
-	device.TempSamples.AddSample(device.readTemp())
+	device.TempSamples.AddSample(device.hwmon.GetTemp())
 	average := device.TempSamples.WeightedAverage()
 	percent := device.fanCurve.GetPwmPercent(average)
 	pwm := device.percentToPwm(percent)
-	device.setPwm(pwm)
+	device.hwmon.SetPwm(pwm)
 }
